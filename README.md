@@ -57,6 +57,8 @@ The GitHub Actions workflow at `.github/workflows/build-ios-ipa.yml` runs automa
 
 The IPA produced by CI is unsigned and cannot be installed directly. A free Apple account normally requires the app to be re-signed periodically.
 
+The iOS deployment target is 13.0, matching the minimum required by the pinned WebRTC plugin.
+
 ## Notes
 
 - Local discovery uses UDP broadcast because it works without internet and does not require a separate router service.

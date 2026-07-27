@@ -20,3 +20,4 @@
 - Added `.github/workflows/build-ios-ipa.yml` to build and upload an unsigned CrewComm IPA on a GitHub-hosted macOS runner.
 - Documented the GitHub Actions download and Windows sideload handoff, including the restricted iOS multicast entitlement limitation for UDP broadcast discovery.
 - Configured the unsigned IPA workflow to run automatically on pushes to `main` as well as through manual dispatch.
+- Raised the iOS deployment target and Flutter framework minimum from 12.0 to 13.0 after the first macOS build identified the WebRTC pod requirement.
