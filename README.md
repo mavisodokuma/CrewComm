@@ -47,7 +47,7 @@ The signed IPA is generated under `build/ios/ipa`. iOS builds cannot be compiled
 
 ### Build an unsigned IPA from Windows
 
-The manual GitHub Actions workflow at `.github/workflows/build-ios-ipa.yml` uses a macOS runner to build and package `CrewComm-unsigned.ipa` without App Store signing:
+The GitHub Actions workflow at `.github/workflows/build-ios-ipa.yml` runs automatically after a push to `main` and can also be started manually. It uses a macOS runner to build and package `CrewComm-unsigned.ipa` without App Store signing:
 
 1. Open the repository's **Actions** tab.
 2. Select **Build unsigned iOS IPA**.

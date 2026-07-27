@@ -19,3 +19,4 @@
 - Rebuilt, reinstalled, and launched the final `CrewComm`-labeled APK on the connected Android device with no fatal startup log.
 - Added `.github/workflows/build-ios-ipa.yml` to build and upload an unsigned CrewComm IPA on a GitHub-hosted macOS runner.
 - Documented the GitHub Actions download and Windows sideload handoff, including the restricted iOS multicast entitlement limitation for UDP broadcast discovery.
+- Configured the unsigned IPA workflow to run automatically on pushes to `main` as well as through manual dispatch.
