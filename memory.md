@@ -21,3 +21,4 @@
 - Documented the GitHub Actions download and Windows sideload handoff, including the restricted iOS multicast entitlement limitation for UDP broadcast discovery.
 - Configured the unsigned IPA workflow to run automatically on pushes to `main` as well as through manual dispatch.
 - Raised the iOS deployment target and Flutter framework minimum from 12.0 to 13.0 after the first macOS build identified the WebRTC pod requirement.
+- Raised the iOS deployment target to 15.5 after checking every pod; `mobile_scanner 6.0.11` has the highest minimum requirement.
