@@ -159,15 +159,30 @@ class _Header extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppTheme.green.withOpacity(0.28)),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            'Live Production Radio',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+          Row(
+            children: <Widget>[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  'assets/branding/crewcomm-logo-3d.png',
+                  width: 72,
+                  height: 72,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Text(
+                  'Live Production Radio',
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 8),
-          Text(
+          const SizedBox(height: 12),
+          const Text(
             'Offline-first PTT for directors, camera, audio, and stage crew.',
             style: TextStyle(color: AppTheme.muted),
           ),

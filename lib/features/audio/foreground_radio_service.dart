@@ -34,6 +34,9 @@ class ForegroundRadioService {
       ],
       notificationTitle: 'CrewComm is live',
       notificationText: 'Listening for production radio traffic',
+      notificationIcon: const NotificationIcon(
+        metaDataName: 'crewcomm_notification_icon',
+      ),
       callback: startRadioForegroundTask,
     );
   }

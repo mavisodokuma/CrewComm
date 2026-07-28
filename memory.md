@@ -4,6 +4,15 @@
 
 - Generated and added a simple 3D CrewComm logo at `assets/branding/crewcomm-logo-3d.png`, using the app's industrial dark palette with connected-green radio waves and red PTT accents.
 - Documented the master branding asset in `README.md`.
+- Applied the new logo to all Android and iOS launcher sizes, iOS launch images, the lobby header, the Android overlay button, and radio notification branding.
+- Replaced `flutter_overlay_window` with a native Android `WindowManager` service to remove conflicting drag/tap gestures and keep overlay PTT responsive over other apps.
+- Added a movable overlay chat head with edge snapping, hold-to-talk, quick controls, and a bottom-screen `X` drag target that dismisses the service.
+- Replaced the placeholder local audio receiver with targeted 16 kHz mono PCM UDP transport and native Android `AudioTrack` / iOS `AVAudioEngine` playback.
+- Added repeating local peer-presence announcements so Admin and Crew devices automatically exchange usable audio addresses and the Admin grid displays real peers.
+- Added local audio sender/room/target metadata, direct/admin/broadcast filtering, receive-state updates, broadcast haptic throttling, and active-broadcast audio ducking.
+- Removed duplicate PTT gesture callbacks by handling pointer-down/up exactly once.
+- Validation completed with `flutter analyze`, `flutter test`, and `flutter build apk --debug`; the rebuilt APK is 279,103,205 bytes with SHA-256 `E2B9AF5E6FE56A321525CB99BB0355B902CBB351AEF7DEE6D2F8E2FE88EB896F`.
+- Android device deployment could not be completed because the previously connected phone was no longer visible to ADB.
 
 ## 2026-07-27
 

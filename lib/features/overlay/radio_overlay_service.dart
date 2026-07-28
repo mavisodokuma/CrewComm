@@ -1,33 +1,53 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:flutter/services.dart';
 
 class RadioOverlayService {
-  Stream<dynamic> get events => FlutterOverlayWindow.overlayListener;
+  RadioOverlayService() {
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'action') {
+        if (call.arguments is Map &&
+            (call.arguments as Map)['action'] == 'dismiss') {
+          _visible = false;
+        }
+        _events.add(call.arguments);
+      }
+    });
+  }
+
+  static const MethodChannel _channel = MethodChannel('crewcomm/overlay');
+  final StreamController<dynamic> _events =
+      StreamController<dynamic>.broadcast();
+  bool _visible = false;
+
+  Stream<dynamic> get events => _events.stream;
 
   Future<void> show() async {
     if (!Platform.isAndroid) {
       return;
     }
-    final granted = await FlutterOverlayWindow.isPermissionGranted() ||
-        (await FlutterOverlayWindow.requestPermission() ?? false);
-    if (!granted || await FlutterOverlayWindow.isActive()) {
-      return;
-    }
-    await FlutterOverlayWindow.showOverlay(
-      height: 104,
-      width: 104,
-      alignment: OverlayAlignment.centerRight,
-      flag: OverlayFlag.defaultFlag,
-      enableDrag: true,
-      positionGravity: PositionGravity.auto,
-      overlayTitle: 'CrewComm PTT',
-      overlayContent: 'Floating radio controls are available',
-    );
+    _visible = true;
+    await _channel.invokeMethod<void>('show');
   }
 
-  Future<void> sendState(Map<String, Object?> state) {
-    return FlutterOverlayWindow.shareData(state);
+  Future<void> sendState(Map<String, Object?> state) async {
+    if (!Platform.isAndroid || !_visible) {
+      return;
+    }
+    await _channel.invokeMethod<void>('updateState', state);
+  }
+
+  Future<void> hide() async {
+    if (!Platform.isAndroid) {
+      return;
+    }
+    _visible = false;
+    await _channel.invokeMethod<void>('hide');
+  }
+
+  void dispose() {
+    _channel.setMethodCallHandler(null);
+    _events.close();
   }
 }

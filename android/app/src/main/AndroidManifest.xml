@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
@@ -17,6 +18,9 @@
         android:label="CrewComm"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="crewcomm_notification_icon"
+            android:resource="@drawable/ic_crewcomm_notification" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -50,7 +54,7 @@
             android:foregroundServiceType="microphone|connectedDevice"
             android:exported="false" />
         <service
-            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
+            android:name=".CrewCommOverlayService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property

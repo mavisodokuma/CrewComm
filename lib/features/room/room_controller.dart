@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../audio/audio_engine.dart';
 import '../audio/bluetooth_headset_service.dart';
 import '../audio/foreground_radio_service.dart';
+import '../audio/native_pcm_player.dart';
 import '../audio/priority_audio_mixer.dart';
 import '../audio/ptt_feedback_service.dart';
 import '../network/cloud_signaling_service.dart';
@@ -35,6 +36,7 @@ final audioEngineProvider = Provider<AudioEngine>((ref) {
     webRtc: WebRtcAudioService(),
     mixer: PriorityAudioMixer(),
     feedback: PttFeedbackService(),
+    player: NativePcmPlayer(),
   );
   ref.onDispose(engine.dispose);
   return engine;
@@ -45,7 +47,9 @@ final foregroundRadioProvider = Provider<ForegroundRadioService>((ref) {
 });
 
 final overlayServiceProvider = Provider<RadioOverlayService>((ref) {
-  return RadioOverlayService();
+  final service = RadioOverlayService();
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 final headsetServiceProvider = Provider<BluetoothHeadsetService>((ref) {
@@ -104,6 +108,9 @@ class RoomController extends StateNotifier<RoomState> {
   StreamSubscription? _linkSub;
   StreamSubscription? _overlaySub;
   StreamSubscription? _headsetSub;
+  StreamSubscription? _presenceSub;
+  StreamSubscription? _audioReceptionSub;
+  Timer? _receiveIdleTimer;
 
   Future<void> init() async {
     await Permission.microphone.request();
@@ -111,6 +118,8 @@ class RoomController extends StateNotifier<RoomState> {
     await audio.requestMicPermission();
     await discovery.startListening();
     _discoverySub = discovery.rooms.listen(_upsertDiscoveredRoom);
+    _presenceSub = discovery.peers.listen(_handlePeerPresence);
+    _audioReceptionSub = audio.receptions.listen(_handleAudioReception);
     _cloudSub = cloud.signals.listen(_handleCloudSignal);
     _overlaySub = overlay.events.listen(_handleOverlayEvent);
     _headsetSub = headset.pttEvents.listen((down) {
@@ -147,11 +156,22 @@ class RoomController extends StateNotifier<RoomState> {
       role: RadioRole.admin,
       status: ConnectionStatus.connected,
       invite: invite,
-      members: _defaultCrew(),
+      members: const <CrewMember>[],
       log: _log('Created ${invite.roomName} in ${_modeLabel(mode)} mode'),
     );
-    await audio.prepareLocalAudio();
+    await audio.prepareLocalAudio(
+      roomId: roomId,
+      selfId: state.selfId,
+      displayName: state.displayName,
+      isAdmin: true,
+    );
     await discovery.advertise(invite);
+    await discovery.announcePresence(
+      roomId: roomId,
+      peerId: state.selfId,
+      name: state.displayName,
+      isAdmin: true,
+    );
     await _connectCloudIfNeeded(invite);
     await foreground.start();
     await overlay.show();
@@ -178,8 +198,18 @@ class RoomController extends StateNotifier<RoomState> {
       log: _log('Joined ${invite.roomName}'),
     );
     await audio.prepareLocalAudio(
+      roomId: invite.roomId,
+      selfId: state.selfId,
+      displayName: state.displayName,
+      isAdmin: false,
       peerAddresses:
           invite.host == null ? const <String>[] : <String>[invite.host!],
+    );
+    await discovery.announcePresence(
+      roomId: invite.roomId,
+      peerId: state.selfId,
+      name: state.displayName,
+      isAdmin: false,
     );
     await _connectCloudIfNeeded(invite);
     _sendCloud('room.join', <String, dynamic>{
@@ -256,7 +286,8 @@ class RoomController extends StateNotifier<RoomState> {
   }
 
   Future<void> startPtt(RadioTarget target, {String? peerId}) async {
-    if (state.micMuted ||
+    if (state.isTransmitting ||
+        state.micMuted ||
         state.masterMuted ||
         (!state.canCrewTalk && !state.isAdmin)) {
       return;
@@ -269,8 +300,25 @@ class RoomController extends StateNotifier<RoomState> {
       selectedDirectPeerId: peerId,
       log: _log(isBroadcast ? 'Broadcast all started' : 'PTT opened'),
     );
-    await audio.setBroadcastPriority(isBroadcast);
-    await audio.startTransmit(useRawUdp: state.mode == NetworkMode.localWifi);
+    try {
+      await audio.setBroadcastPriority(isBroadcast);
+      await audio.startTransmit(
+        useRawUdp: state.mode == NetworkMode.localWifi,
+        target: target.name,
+        peerId: peerId,
+      );
+    } catch (error) {
+      await audio.setBroadcastPriority(false);
+      state = state.copyWith(
+        status: ConnectionStatus.connected,
+        isTransmitting: false,
+        isBroadcasting: false,
+        clearDirectPeer: true,
+        log: _log('PTT failed: $error'),
+      );
+      await _syncOverlay();
+      return;
+    }
     _sendCloud('ptt.start', <String, dynamic>{
       'target': target.name,
       'peerId': peerId,
@@ -311,6 +359,61 @@ class RoomController extends StateNotifier<RoomState> {
           : state.status,
       discoveredRooms: rooms,
     );
+  }
+
+  void _handlePeerPresence(PeerPresence peer) {
+    if (peer.roomId != state.roomId || peer.peerId == state.selfId) {
+      return;
+    }
+    audio.addPeer(peer.address);
+    final member = CrewMember(
+      id: peer.peerId,
+      name: peer.name,
+      roleLabel: peer.roleLabel,
+      radioRole: peer.isAdmin ? RadioRole.admin : RadioRole.crew,
+      latencyMs: 0,
+      signalStrength: 1,
+    );
+    state = state.copyWith(
+      members: <CrewMember>[
+        member,
+        ...state.members.where(
+          (existing) =>
+              existing.id != member.id &&
+              !(peer.isAdmin && existing.radioRole == RadioRole.admin),
+        ),
+      ],
+    );
+  }
+
+  void _handleAudioReception(AudioReception reception) {
+    if (state.isTransmitting) {
+      return;
+    }
+    final speaker = reception.broadcast
+        ? '${reception.senderName.toUpperCase()} BROADCASTING...'
+        : '${reception.senderName} speaking';
+    final changed = !state.isReceiving || state.activeSpeaker != speaker;
+    if (changed) {
+      state = state.copyWith(
+        status: ConnectionStatus.receiving,
+        isReceiving: true,
+        activeSpeaker: speaker,
+      );
+      _syncOverlay();
+    }
+    _receiveIdleTimer?.cancel();
+    _receiveIdleTimer = Timer(const Duration(milliseconds: 320), () {
+      if (!mounted || state.isTransmitting) {
+        return;
+      }
+      state = state.copyWith(
+        status: ConnectionStatus.connected,
+        isReceiving: false,
+        clearActiveSpeaker: true,
+      );
+      _syncOverlay();
+    });
   }
 
   void _handleCloudSignal(CloudSignal signal) {
@@ -370,11 +473,16 @@ class RoomController extends StateNotifier<RoomState> {
         stopPtt();
       case 'broadcast':
         startPtt(RadioTarget.broadcast);
+      case 'broadcastDown':
+        startPtt(RadioTarget.broadcast);
       case 'mute':
         state = state.copyWith(micMuted: !state.micMuted);
         _syncOverlay();
+      case 'dismiss':
+        if (state.isTransmitting) {
+          stopPtt();
+        }
       case 'open':
-        // flutter_overlay_window launches the main app from the overlay isolate.
         break;
     }
   }
@@ -418,36 +526,6 @@ class RoomController extends StateNotifier<RoomState> {
     });
   }
 
-  List<CrewMember> _defaultCrew() => const <CrewMember>[
-        CrewMember(
-          id: 'cam1',
-          name: 'Avery',
-          roleLabel: 'Cam 1',
-          radioRole: RadioRole.crew,
-          signalStrength: 0.94,
-          latencyMs: 18,
-          audioLevel: 0.42,
-        ),
-        CrewMember(
-          id: 'audio',
-          name: 'Morgan',
-          roleLabel: 'Audio',
-          radioRole: RadioRole.crew,
-          signalStrength: 0.81,
-          latencyMs: 24,
-          audioLevel: 0.24,
-        ),
-        CrewMember(
-          id: 'stage',
-          name: 'Riley',
-          roleLabel: 'Stage',
-          radioRole: RadioRole.crew,
-          signalStrength: 0.76,
-          latencyMs: 35,
-          audioLevel: 0.12,
-        ),
-      ];
-
   List<String> _log(String message) {
     final stamp = DateTime.now().toIso8601String().substring(11, 19);
     return <String>['$stamp  $message', ...state.log].take(10).toList();
@@ -464,6 +542,9 @@ class RoomController extends StateNotifier<RoomState> {
     _linkSub?.cancel();
     _overlaySub?.cancel();
     _headsetSub?.cancel();
+    _presenceSub?.cancel();
+    _audioReceptionSub?.cancel();
+    _receiveIdleTimer?.cancel();
     super.dispose();
   }
 }

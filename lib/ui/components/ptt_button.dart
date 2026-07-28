@@ -39,12 +39,10 @@ class _PttButtonState extends State<PttButton>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPressStart: (_) => widget.onDown(),
-      onLongPressEnd: (_) => widget.onUp(),
-      onTapDown: (_) => widget.onDown(),
-      onTapUp: (_) => widget.onUp(),
-      onTapCancel: widget.onUp,
+    return Listener(
+      onPointerDown: (_) => widget.onDown(),
+      onPointerUp: (_) => widget.onUp(),
+      onPointerCancel: (_) => widget.onUp(),
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
