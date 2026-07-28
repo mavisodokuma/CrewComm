@@ -2,6 +2,10 @@
 
 CrewComm is a cross-platform Flutter push-to-talk walkie-talkie app for live production crews. It is offline-first over shared Wi-Fi and can fall back to cloud WebSocket signaling when crew are split across networks.
 
+## Branding
+
+The master 3D CrewComm logo is stored at `assets/branding/crewcomm-logo-3d.png`. It uses the app's OLED charcoal, connected green, and live-transmit red palette with a compact radio-microphone mark.
+
 ## Implemented
 
 - Modular Flutter structure under `lib/features/room`, `lib/features/audio`, `lib/features/network`, `lib/features/overlay`, and `lib/ui/components`.

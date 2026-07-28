@@ -1,5 +1,10 @@
 # Memory
 
+## 2026-07-28
+
+- Generated and added a simple 3D CrewComm logo at `assets/branding/crewcomm-logo-3d.png`, using the app's industrial dark palette with connected-green radio waves and red PTT accents.
+- Documented the master branding asset in `README.md`.
+
 ## 2026-07-27
 
 - Scaffolded a new Flutter project named `cmc` in `C:\Users\me\Documents\Projects\CMC`.
